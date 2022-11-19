@@ -1,4 +1,4 @@
-const {Client, Events, GatewayIntentBits} = require('discord.js'); // Подключаем библиотеку discord.js
+const {Client, Events, GatewayIntentBits, Collection} = require('discord.js'); // Подключаем библиотеку discord.js
 const robot = new Client(
     {
         intents: [
@@ -6,6 +6,7 @@ const robot = new Client(
             GatewayIntentBits.GuildMessages,
             GatewayIntentBits.MessageContent,
             GatewayIntentBits.GuildMembers,
+            GatewayIntentBits.GuildVoiceStates
         ]
     }
 ); // Объявляем, что robot - бот
@@ -20,6 +21,9 @@ robot.on("ready", function() {
     console.log(robot.user.username + " запустился!");
 });
 
+robot.on('guildCreate', guild => {
+    console.log('Joined a new guild: ' + guild.name);
+});
 
 robot.on('messageCreate', (msg) => { // Реагирование на сообщения
     if (msg.author.username !== robot.user.username && msg.author.discriminator !== robot.user.discriminator) {
@@ -31,6 +35,33 @@ robot.on('messageCreate', (msg) => { // Реагирование на сообщ
             if (command2 === commandName) {
                 commands.commands[commandsCount].out(robot, msg, messArr);
             }
+        }
+    }
+});
+
+robot.on("voiceStateUpdate", async (oldState, newState) => {
+    const user = await robot.users.fetch(newState.id);
+    const member = newState.member;
+
+    if (newState.channel && newState.channel.name === 'Создать канал (+)') {
+        newState.guild.channels.create({
+            name: user.username,
+            type: 2,
+            parent: newState.channel.parent,
+        }).then((channel) => {
+            channel.permissionOverwrites.edit(member, {
+                'MoveMembers': true,
+                'ManageChannels': true,
+                'ManageRoles': true
+            });
+            member.voice.setChannel(channel);
+        }).catch((error) => {
+            console.log('error', error);
+        });
+    }
+    if (oldState.channel && oldState.channel.parent.name === '• Приватные комнаты •' && oldState.channel.name !== 'Создать канал (+)') {
+        if (oldState.channel.members.size === 0) {
+            return oldState.channel.delete();
         }
     }
 });
